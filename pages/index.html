@@ -1,0 +1,122 @@
+// pages/index.js
+import { useState, useEffect } from 'react';
+import Head from 'next/head';
+
+export default function Home() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [learningPoints, setLearningPoints] = useState([]);
+  const [apiKey, setApiKey] = useState('');
+
+  useEffect(() => {
+    const storedKey = localStorage.getItem('anthropic_api_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+      fetchLearningPoints(storedKey);
+    }
+  }, []);
+
+  const updateApiKey = (newKey) => {
+    localStorage.setItem('anthropic_api_key', newKey);
+    setApiKey(newKey);
+    fetchLearningPoints(newKey);
+  };
+
+  const fetchLearningPoints = async (key) => {
+    if (!key) {
+      setError('Please enter your API key first.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setLearningPoints([]);
+
+    try {
+      const response = await fetch('/api/pyspark', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch learning points');
+      }
+
+      if (data.content && data.content[0] && data.content[0].text) {
+        const points = data.content[0].text
+          .split('\n')
+          .filter(point => point.trim().length > 0);
+        setLearningPoints(points);
+      } else {
+        throw new Error('Invalid response format from API');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#1B1B1D] text-white">
+      <Head>
+        <title>Anab's PySpark Journey</title>
+        <meta name="description" content="PySpark Learning Journey" />
+      </Head>
+
+      <main className="container mx-auto max-w-3xl p-6">
+        <div className="bg-[#2D2D30] rounded-lg shadow-lg p-8">
+          <h1 className="text-4xl font-bold text-center text-[#FF3621] mb-8 pb-4 border-b-2 border-[#FF3621]">
+            Anab's PySpark Journey for Databricks
+          </h1>
+
+          <div className="mb-8 text-center">
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Enter Anthropic API Key"
+              className="bg-opacity-10 bg-white text-white px-4 py-2 rounded mr-2 border border-[#FF3621] focus:outline-none focus:ring-2 focus:ring-[#FF3621]"
+            />
+            <button
+              onClick={() => updateApiKey(apiKey)}
+              className="bg-[#FF3621] px-4 py-2 rounded hover:bg-[#FF5A48] transition-colors"
+            >
+              Update API Key
+            </button>
+          </div>
+
+          {loading && (
+            <div className="text-center text-[#FF5A48]">Loading learning points...</div>
+          )}
+
+          {error && (
+            <div className="text-[#FF3621] text-center p-4 mb-4 bg-opacity-10 bg-[#FF3621] rounded">
+              {error}
+            </div>
+          )}
+
+          <ul className="space-y-4">
+            {learningPoints.map((point, index) => (
+              <li
+                key={index}
+                className="p-4 bg-opacity-10 bg-[#FF3621] rounded border-l-4 border-[#FF3621] hover:transform hover:translate-x-2 transition-transform"
+              >
+                {point}
+              </li>
+            ))}
+          </ul>
+
+          <div className="text-center mt-8 pt-4 border-t border-[#FF3621] text-gray-400">
+            Powered by Anthropic Claude API
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
