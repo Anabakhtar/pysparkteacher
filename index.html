@@ -80,12 +80,44 @@
             text-align: center;
             padding: 1rem;
             display: none;
+            white-space: pre-wrap;
+        }
+
+        .api-key-form {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .api-key-form input {
+            padding: 0.5rem;
+            margin-right: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--databricks-red);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .api-key-form button {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            border: none;
+            background: var(--databricks-red);
+            color: white;
+            cursor: pointer;
+        }
+
+        .api-key-form button:hover {
+            background: var(--databricks-light);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Anab's PySpark Journey for Databricks</h1>
+        <div class="api-key-form">
+            <input type="password" id="api-key-input" placeholder="Enter Anthropic API Key">
+            <button onclick="updateApiKey()">Update API Key</button>
+        </div>
         <div id="loading">Loading learning points...</div>
         <div id="error-message" class="error-message"></div>
         <ul id="learning-points">
@@ -106,42 +138,61 @@
             return localStorage.getItem('anthropic_api_key');
         }
 
-        // Prompt user for API key if not stored
-        if (!getApiKey()) {
-            const apiKey = prompt('Please enter your Anthropic API key:');
+        function updateApiKey() {
+            const input = document.getElementById('api-key-input');
+            const apiKey = input.value.trim();
             if (apiKey) {
                 saveApiKey(apiKey);
+                input.value = '';
+                fetchLearningPoints();
             }
         }
 
-        const API_KEY = getApiKey();
+        // Set initial API key input value if exists
+        if (getApiKey()) {
+            document.getElementById('api-key-input').value = getApiKey();
+        }
 
         async function fetchLearningPoints() {
             const loading = document.getElementById('loading');
             const errorMessage = document.getElementById('error-message');
+            const learningPointsList = document.getElementById('learning-points');
+            
             loading.style.display = 'block';
             errorMessage.style.display = 'none';
+            learningPointsList.innerHTML = '';
+
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                errorMessage.textContent = 'Please enter your API key first.';
+                errorMessage.style.display = 'block';
+                loading.style.display = 'none';
+                return;
+            }
 
             try {
+                console.log('Fetching from Netlify function...');
                 const response = await fetch('/.netlify/functions/fetchPyspark', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': API_KEY
+                        'x-api-key': apiKey
                     }
                 });
 
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
-                
                 if (data.error) {
                     throw new Error(data.error);
                 }
-                
-                if (data.content && data.content[0] && data.content[0].text) {
+
+                if (data.content && Array.isArray(data.content) && data.content[0] && data.content[0].text) {
                     const learningPoints = data.content[0].text
                         .split('\n')
                         .filter(point => point.trim().length > 0);
@@ -150,8 +201,8 @@
                     throw new Error('Invalid response format from API');
                 }
             } catch (error) {
-                console.error('Error fetching learning points:', error);
-                errorMessage.textContent = `Error: ${error.message}. Please check your API key and try again.`;
+                console.error('Error details:', error);
+                errorMessage.textContent = `Error: ${error.message}\nPlease check your API key and try again.`;
                 errorMessage.style.display = 'block';
             } finally {
                 loading.style.display = 'none';
@@ -160,7 +211,7 @@
 
         function populateLearningPoints(points) {
             const learningPointsList = document.getElementById('learning-points');
-            learningPointsList.innerHTML = ''; // Clear existing points
+            learningPointsList.innerHTML = '';
             
             points.forEach(point => {
                 if (point.trim()) {
@@ -171,12 +222,9 @@
             });
         }
 
-        // Fetch and display the learning points on page load
-        if (API_KEY) {
+        // Fetch learning points if API key exists
+        if (getApiKey()) {
             fetchLearningPoints();
-        } else {
-            document.getElementById('error-message').textContent = 'Please provide an API key to fetch learning points.';
-            document.getElementById('error-message').style.display = 'block';
         }
     </script>
 </body>
