@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anab's PySpark Journey</title>
+    <style>
+        :root {
+            --databricks-red: #FF3621;
+            --databricks-dark: #1B1B1D;
+            --databricks-light: #FF5A48;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--databricks-dark);
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 90%;
+            background: #2D2D30;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(255, 54, 33, 0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--databricks-red);
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--databricks-red);
+            padding-bottom: 1rem;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 1rem 0;
+            padding: 1rem;
+            background-color: rgba(255, 54, 33, 0.1);
+            border-left: 4px solid var(--databricks-red);
+            border-radius: 0 8px 8px 0;
+            transition: transform 0.2s ease;
+        }
+
+        li:hover {
+            transform: translateX(5px);
+            background-color: rgba(255, 54, 33, 0.15);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 54, 33, 0.3);
+            color: #888;
+        }
+
+        #loading {
+            text-align: center;
+            color: var(--databricks-light);
+            display: none;
+        }
+
+        .error-message {
+            color: var(--databricks-red);
+            text-align: center;
+            padding: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Anab's PySpark Journey for Databricks</h1>
+        <div id="loading">Loading learning points...</div>
+        <div id="error-message" class="error-message"></div>
+        <ul id="learning-points">
+            <!-- Learning points will be dynamically inserted here -->
+        </ul>
+        <div class="footer">
+            Powered by Anthropic Claude API
+        </div>
+    </div>
+
+    <script>
+        // Store API key in localStorage
+        function saveApiKey(key) {
+            localStorage.setItem('anthropic_api_key', key);
+        }
+
+        function getApiKey() {
+            return localStorage.getItem('anthropic_api_key');
+        }
+
+        // Prompt user for API key if not stored
+        if (!getApiKey()) {
+            const apiKey = prompt('Please enter your Anthropic API key:');
+            if (apiKey) {
+                saveApiKey(apiKey);
+            }
+        }
+
+        const API_KEY = getApiKey();
+        const API_URL = 'https://api.anthropic.com/v1/messages';
+
+        async function fetchLearningPoints() {
+            const loading = document.getElementById('loading');
+            const errorMessage = document.getElementById('error-message');
+            loading.style.display = 'block';
+            errorMessage.style.display = 'none';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': API_KEY,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-sonnet-20240229',
+                        max_tokens: 500,
+                        messages: [{
+                            role: 'user',
+                            content: 'Provide 5 key learning points about PySpark, focusing on practical applications and best practices. Format each point as a clear, concise statement.'
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.content && data.content[0].text) {
+                    const learningPoints = data.content[0].text
+                        .split('\n')
+                        .filter(point => point.trim().length > 0);
+                    populateLearningPoints(learningPoints);
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (error) {
+                console.error('Error fetching learning points:', error);
+                errorMessage.textContent = 'Error loading learning points. Please check your API key and try again.';
+                errorMessage.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function populateLearningPoints(points) {
+            const learningPointsList = document.getElementById('learning-points');
+            learningPointsList.innerHTML = ''; // Clear existing points
+            
+            points.forEach(point => {
+                if (point.trim()) {
+                    const li = document.createElement('li');
+                    li.textContent = point.trim();
+                    learningPointsList.appendChild(li);
+                }
+            });
+        }
+
+        // Fetch and display the learning points on page load
+        if (API_KEY) {
+            fetchLearningPoints();
+        } else {
+            document.getElementById('error-message').textContent = 'Please provide an API key to fetch learning points.';
+            document.getElementById('error-message').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
