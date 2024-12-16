@@ -114,7 +114,6 @@
         }
 
         const API_KEY = getApiKey();
-        const API_URL = 'https://api.anthropic.com/v1/messages';
 
         async function fetchLearningPoints() {
             const loading = document.getElementById('loading');
@@ -123,21 +122,12 @@
             errorMessage.style.display = 'none';
 
             try {
-                const response = await fetch(API_URL, {
+                const response = await fetch('/.netlify/functions/fetchPyspark', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': API_KEY,
-                        'anthropic-version': '2023-06-01'
-                    },
-                    body: JSON.stringify({
-                        model: 'claude-3-sonnet-20240229',
-                        max_tokens: 500,
-                        messages: [{
-                            role: 'user',
-                            content: 'Provide 5 key learning points about PySpark, focusing on practical applications and best practices. Format each point as a clear, concise statement.'
-                        }]
-                    })
+                        'x-api-key': API_KEY
+                    }
                 });
 
                 const data = await response.json();
@@ -147,6 +137,8 @@
                         .split('\n')
                         .filter(point => point.trim().length > 0);
                     populateLearningPoints(learningPoints);
+                } else if (data.error) {
+                    throw new Error(data.error);
                 } else {
                     throw new Error('Invalid response format');
                 }
